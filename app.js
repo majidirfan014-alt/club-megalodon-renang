@@ -157,7 +157,15 @@ $('#loginForm').addEventListener('submit', e => {
     $('#loginPage').style.display = 'none';
     $('#appContainer').style.display = 'flex';
     $('#loginError').style.display = 'none';
-    navigateTo('dashboard');
+    // Tunggu init selesai lalu render
+    function afterInit() {
+      if (initDone) {
+        navigateTo('dashboard');
+      } else {
+        setTimeout(afterInit, 100);
+      }
+    }
+    afterInit();
   } else {
     $('#loginError').style.display = 'block';
   }
@@ -1953,6 +1961,7 @@ async function loadFromFirestore() {
 }
 
 // ===== INIT: Load Firestore or Demo =====
+let initDone = false;
 (async function initApp() {
   const loaded = await loadFromFirestore();
   if (!loaded) {
@@ -1962,6 +1971,11 @@ async function loadFromFirestore() {
     APP.tesFisik.forEach(t => saveTesFisikToFirestore(t));
     APP.tesCSS.forEach(t => saveTesCSSToFirestore(t));
     saveNextIdToFirestore();
+  }
+  initDone = true;
+  // Jika user sudah login, re-render dashboard
+  if (APP.loggedIn) {
+    renderDashboard();
   }
 })();
 
