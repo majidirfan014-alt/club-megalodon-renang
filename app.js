@@ -331,6 +331,7 @@ $('#formFisik').addEventListener('submit', e => {
   APP.tesFisik.push(tes);
   saveTesFisikToFirestore(tes);
   saveNextIdToFirestore();
+  renderDashboard();
   $('#fisikSuccess').style.display = 'block';
   setTimeout(() => { $('#fisikSuccess').style.display = 'none'; }, 3000);
   $('#formFisik').reset();
@@ -362,6 +363,7 @@ function hapusTesFisikAtlet(atletId) {
   APP.tesFisik = APP.tesFisik.filter(t => t.atletId !== atletId);
   deleteTesFisikFromFirestore(atletId);
   renderHasilFisik();
+  renderDashboard();
 }
 
 function hapusTesCSSAtlet(atletId) {
@@ -371,6 +373,7 @@ function hapusTesCSSAtlet(atletId) {
   APP.tesCSS = APP.tesCSS.filter(t => t.atletId !== atletId);
   deleteTesCSSFromFirestore(atletId);
   renderHasilCSS();
+  renderDashboard();
 }
 
 function renderHasilFisik() {
@@ -639,6 +642,7 @@ $('#formCSS').addEventListener('submit', e => {
   APP.tesCSS.push(tes);
   saveTesCSSToFirestore(tes);
   saveNextIdToFirestore();
+  renderDashboard();
 
   // Show result
   showCSSResult(atlet, tes);
