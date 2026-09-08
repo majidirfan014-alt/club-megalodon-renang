@@ -1,3 +1,16 @@
+// ===== FIREBASE INIT =====
+const firebaseConfig = {
+  apiKey: "AIzaSyAGEnT9W_RN3RUJCINnFQqSoEcBn0eYiV8",
+  authDomain: "megalodonclub-3a8c1.firebaseapp.com",
+  projectId: "megalodonclub-3a8c1",
+  storageBucket: "megalodonclub-3a8c1.firebasestorage.app",
+  messagingSenderId: "786587463822",
+  appId: "1:786587463822:web:29931815975066658919df",
+  measurementId: "G-C93D6TB7ZT"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 // ===== STATE =====
 const APP = {
   loggedIn: false,
@@ -295,6 +308,7 @@ $('#formFisik').addEventListener('submit', e => {
       usia: hitungUsia(tglLahir)
     };
     APP.atlet.push(atlet);
+    saveAtletToFirestore(atlet);
   }
 
   const tes = {
@@ -315,6 +329,8 @@ $('#formFisik').addEventListener('submit', e => {
   };
 
   APP.tesFisik.push(tes);
+  saveTesFisikToFirestore(tes);
+  saveNextIdToFirestore();
   $('#fisikSuccess').style.display = 'block';
   setTimeout(() => { $('#fisikSuccess').style.display = 'none'; }, 3000);
   $('#formFisik').reset();
@@ -344,6 +360,7 @@ function hapusTesFisikAtlet(atletId) {
   if (!a) return;
   if (!confirm(`Hapus SEMUA data tes fisik ${a.nama}?`)) return;
   APP.tesFisik = APP.tesFisik.filter(t => t.atletId !== atletId);
+  deleteTesFisikFromFirestore(atletId);
   renderHasilFisik();
 }
 
@@ -352,6 +369,7 @@ function hapusTesCSSAtlet(atletId) {
   if (!a) return;
   if (!confirm(`Hapus SEMUA data tes CSS ${a.nama}?`)) return;
   APP.tesCSS = APP.tesCSS.filter(t => t.atletId !== atletId);
+  deleteTesCSSFromFirestore(atletId);
   renderHasilCSS();
 }
 
@@ -619,6 +637,8 @@ $('#formCSS').addEventListener('submit', e => {
   };
 
   APP.tesCSS.push(tes);
+  saveTesCSSToFirestore(tes);
+  saveNextIdToFirestore();
 
   // Show result
   showCSSResult(atlet, tes);
@@ -1859,6 +1879,86 @@ function loadDemoData() {
   APP.nextId = 100;
 }
 
-loadDemoData();
+// ===== FIRESTORE SYNC =====
+const COL = {
+  atlet: db.collection('atlet'),
+  tesFisik: db.collection('tesFisik'),
+  tesCSS: db.collection('tesCSS')
+};
+
+function saveAtletToFirestore(a) {
+  COL.atlet.doc(String(a.id)).set({
+    id: a.id, nama: a.nama, jenisKelamin: a.jenisKelamin,
+    tanggalLahir: a.tanggalLahir, usia: a.usia
+  });
+}
+
+function saveTesFisikToFirestore(t) {
+  COL.tesFisik.doc(String(t.id)).set(t);
+}
+
+function saveTesCSSToFirestore(t) {
+  COL.tesCSS.doc(String(t.id)).set(t);
+}
+
+function deleteAtletFromFirestore(id) {
+  COL.atlet.doc(String(id)).delete();
+}
+
+function deleteTesFisikFromFirestore(atletId) {
+  COL.tesFisik.where('atletId', '==', atletId).get().then(snap => {
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    batch.commit();
+  });
+}
+
+function deleteTesCSSFromFirestore(atletId) {
+  COL.tesCSS.where('atletId', '==', atletId).get().then(snap => {
+    const batch = db.batch();
+    snap.forEach(doc => batch.delete(doc.ref));
+    batch.commit();
+  });
+}
+
+function saveNextIdToFirestore() {
+  db.collection('meta').doc('counter').set({ nextId: APP.nextId });
+}
+
+async function loadFromFirestore() {
+  try {
+    const [atletSnap, fisikSnap, cssSnap, metaSnap] = await Promise.all([
+      COL.atlet.get(),
+      COL.tesFisik.get(),
+      COL.tesCSS.get(),
+      db.collection('meta').doc('counter').get()
+    ]);
+
+    if (!atletSnap.empty) {
+      APP.atlet = atletSnap.docs.map(d => d.data());
+      APP.tesFisik = fisikSnap.docs.map(d => d.data());
+      APP.tesCSS = cssSnap.docs.map(d => d.data());
+      if (metaSnap.exists) APP.nextId = metaSnap.data().nextId;
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn('Firestore load error, using demo data:', err);
+    return false;
+  }
+}
+
+// ===== INIT: Load Firestore or Demo =====
+(async function initApp() {
+  const loaded = await loadFromFirestore();
+  if (!loaded) {
+    loadDemoData();
+    // Sync demo data to Firestore
+    APP.atlet.forEach(a => saveAtletToFirestore(a));
+    APP.tesFisik.forEach(t => saveTesFisikToFirestore(t));
+    APP.tesCSS.forEach(t => saveTesCSSToFirestore(t));
+    saveNextIdToFirestore();
+  }
+})();
 
 
