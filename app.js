@@ -985,7 +985,13 @@ $('#radarDownloadBtn').addEventListener('click', function() {
 
 // ===== DASHBOARD =====
 function renderDashboard() {
-  if (APP.atlet.length === 0) {
+  // Cards per atlet (only show atlets with tes fisik data)
+  const atletWithFisik = APP.atlet.filter(a => {
+    const aid = normalizeId(a.id);
+    return APP.tesFisik.some(t => normalizeId(t.atletId) === aid);
+  });
+
+  if (atletWithFisik.length === 0) {
     $('#dashboardStats').innerHTML = '';
     $('#dashboardCards').innerHTML = '';
     $('#dashboardEmpty').style.display = 'block';
@@ -994,7 +1000,7 @@ function renderDashboard() {
   $('#dashboardEmpty').style.display = 'none';
 
   // Stats
-  const totalAtlet = APP.atlet.length;
+  const totalAtlet = atletWithFisik.length;
   const totalFisik = APP.tesFisik.length;
   const totalCSS = APP.tesCSS.length;
   $('#dashboardStats').innerHTML = `
@@ -1003,9 +1009,8 @@ function renderDashboard() {
     <div class="stat-card"><div class="stat-value">${totalCSS}</div><div class="stat-label">Total Tes CSS</div></div>
   `;
 
-  // Cards per atlet
   let html = '';
-  APP.atlet.forEach(a => {
+  atletWithFisik.forEach(a => {
     const aid = normalizeId(a.id);
     const allFisik = APP.tesFisik.filter(t => normalizeId(t.atletId) === aid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes));
     const latestFisik = allFisik[0];
