@@ -1962,6 +1962,14 @@ async function loadFromFirestore() {
       APP.tesFisik = fisikSnap.docs.map(d => d.data());
       APP.tesCSS = cssSnap.docs.map(d => d.data());
       if (metaSnap.exists) APP.nextId = metaSnap.data().nextId;
+      // Bersihkan atlet orphans (tidak ada tes fisik & CSS)
+      const orphanIds = APP.atlet.filter(a => {
+        return !APP.tesFisik.some(t => t.atletId === a.id) && !APP.tesCSS.some(t => t.atletId === a.id);
+      }).map(a => a.id);
+      if (orphanIds.length > 0) {
+        APP.atlet = APP.atlet.filter(a => !orphanIds.includes(a.id));
+        orphanIds.forEach(id => deleteAtletFromFirestore(id));
+      }
       return true;
     }
     return false;
