@@ -62,7 +62,7 @@ function getDataTesTerbaru() {
     }
   });
   return Object.values(grouped).map(tes => {
-    const atlet = APP.atlet.find(a => a.id === tes.atletId);
+    const atlet = APP.atlet.find(a => normalizeId(a.id) === normalizeId(tes.atletId));
     return atlet ? { ...tes, jenisKelamin: atlet.jenisKelamin, nama: atlet.nama } : null;
   }).filter(Boolean);
 }
@@ -352,7 +352,7 @@ function populateFilterAtletFisik() {
   const currentVal = sel.value;
   sel.innerHTML = '<option value="">Semua Atlet</option>';
   const namaSet = [...new Set(APP.tesFisik.map(t => {
-    const a = APP.atlet.find(x => x.id === t.atletId);
+    const a = APP.atlet.find(x => normalizeId(x.id) === normalizeId(t.atletId));
     return a ? a.nama : 'Unknown';
   }))];
   namaSet.forEach(n => {
@@ -364,33 +364,64 @@ function populateFilterAtletFisik() {
 }
 
 // ===== HAPUS DATA PER ATLET =====
-function removeAtletIfEmpty(atletId) {
-  const hasFisik = APP.tesFisik.some(t => t.atletId === atletId);
-  const hasCSS = APP.tesCSS.some(t => t.atletId === atletId);
-  if (!hasFisik && !hasCSS) {
-    APP.atlet = APP.atlet.filter(a => a.id !== atletId);
-    deleteAtletFromFirestore(atletId);
-  }
-}
+function normalizeId(v) { return String(v); }
 
 function hapusTesFisikAtlet(atletId) {
-  const a = APP.atlet.find(x => x.id === atletId);
+  const nid = normalizeId(atletId);
+  const a = APP.atlet.find(x => normalizeId(x.id) === nid);
   if (!a) return;
   if (!confirm(`Hapus SEMUA data tes fisik ${a.nama}?`)) return;
-  APP.tesFisik = APP.tesFisik.filter(t => t.atletId !== atletId);
-  deleteTesFisikFromFirestore(atletId);
-  removeAtletIfEmpty(atletId);
+  APP.tesFisik = APP.tesFisik.filter(t => normalizeId(t.atletId) !== nid);
+  deleteTesFisikFromFirestore(nid);
+  hapusAtletJikaKosong(nid);
   renderHasilFisik();
   renderDashboard();
 }
 
 function hapusTesCSSAtlet(atletId) {
-  const a = APP.atlet.find(x => x.id === atletId);
+  const nid = normalizeId(atletId);
+  const a = APP.atlet.find(x => normalizeId(x.id) === nid);
   if (!a) return;
   if (!confirm(`Hapus SEMUA data tes CSS ${a.nama}?`)) return;
-  APP.tesCSS = APP.tesCSS.filter(t => t.atletId !== atletId);
-  deleteTesCSSFromFirestore(atletId);
-  removeAtletIfEmpty(atletId);
+  APP.tesCSS = APP.tesCSS.filter(t => normalizeId(t.atletId) !== nid);
+  deleteTesCSSFromFirestore(nid);
+  hapusAtletJikaKosong(nid);
+  renderHasilCSS();
+  renderDashboard();
+}
+
+function hapusAtletJikaKosong(atletId) {
+  const nid = normalizeId(atletId);
+  const hasFisik = APP.tesFisik.some(t => normalizeId(t.atletId) === nid);
+  const hasCSS = APP.tesCSS.some(t => normalizeId(t.atletId) === nid);
+  if (!hasFisik && !hasCSS) {
+    APP.atlet = APP.atlet.filter(a => normalizeId(a.id) !== nid);
+    deleteAtletFromFirestore(nid);
+  }
+}
+
+function hapusTesFisikPerRecord(tesId) {
+  const nid = normalizeId(tesId);
+  const tes = APP.tesFisik.find(t => normalizeId(t.id) === nid);
+  if (!tes) return;
+  if (!confirm('Hapus data tes fisik ini?')) return;
+  const atletId = tes.atletId;
+  APP.tesFisik = APP.tesFisik.filter(t => normalizeId(t.id) !== nid);
+  COL.tesFisik.doc(nid).delete();
+  hapusAtletJikaKosong(atletId);
+  renderHasilFisik();
+  renderDashboard();
+}
+
+function hapusTesCSSPerRecord(tesId) {
+  const nid = normalizeId(tesId);
+  const tes = APP.tesCSS.find(t => normalizeId(t.id) === nid);
+  if (!tes) return;
+  if (!confirm('Hapus data tes CSS ini?')) return;
+  const atletId = tes.atletId;
+  APP.tesCSS = APP.tesCSS.filter(t => normalizeId(t.id) !== nid);
+  COL.tesCSS.doc(nid).delete();
+  hapusAtletJikaKosong(atletId);
   renderHasilCSS();
   renderDashboard();
 }
@@ -400,7 +431,7 @@ function renderHasilFisik() {
   let tesList = APP.tesFisik;
   if (filterNama) {
     tesList = tesList.filter(t => {
-      const a = APP.atlet.find(x => x.id === t.atletId);
+      const a = APP.atlet.find(x => normalizeId(x.id) === normalizeId(t.atletId));
       return a && a.nama === filterNama;
     });
   }
@@ -410,11 +441,11 @@ function renderHasilFisik() {
     return;
   }
 
-  // group by atlet
   const grouped = {};
   tesList.forEach(t => {
-    if (!grouped[t.atletId]) grouped[t.atletId] = [];
-    grouped[t.atletId].push(t);
+    const key = normalizeId(t.atletId);
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(t);
   });
 
   function buildItems(tes, jk) {
@@ -464,7 +495,7 @@ function renderHasilFisik() {
 
   let html = '';
   for (const [atletId, list] of Object.entries(grouped)) {
-    const a = APP.atlet.find(x => x.id === parseInt(atletId));
+    const a = APP.atlet.find(x => normalizeId(x.id) === atletId);
     if (!a) continue;
 
     // sort by tanggal (terbaru duluan)
@@ -473,7 +504,7 @@ function renderHasilFisik() {
     html += `<div class="rek-card">`;
     html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">`;
     html += `<h3 style="margin:0;">${a.nama} (${a.jenisKelamin}, Usia ${a.usia})</h3>`;
-    html += `<button onclick="hapusTesFisikAtlet(${a.id})" style="background:#ef4444;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Hapus Semua Tes Fisik</button>`;
+    html += `<button onclick="hapusTesFisikAtlet('${normalizeId(a.id)}')" style="background:#ef4444;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Hapus Semua Tes Fisik</button>`;
     html += `</div>`;
 
     if (list.length >= 2) {
@@ -536,7 +567,7 @@ function renderHasilFisik() {
       html += `<details style="margin-top:12px;"><summary style="cursor:pointer;color:var(--primary);font-size:0.85rem;">Lihat detail per tanggal tes</summary>`;
       list.forEach(tes => {
         const items = buildItems(tes, a.jenisKelamin);
-        html += `<p style="margin:12px 0 4px;color:var(--text-light);font-size:0.85rem;">Tes: ${tes.tanggalTes}</p>`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 4px;"><p style="margin:0;color:var(--text-light);font-size:0.85rem;">Tes: ${tes.tanggalTes}</p><button onclick="hapusTesFisikPerRecord('${normalizeId(tes.id)}')" style="background:#ef4444;color:#fff;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:0.7rem;">Hapus</button></div>`;
         html += renderTabelNormal(items);
       });
       html += '</details>';
@@ -545,7 +576,7 @@ function renderHasilFisik() {
       // Hanya 1 tes → tampil normal
       const tes = list[0];
       const items = buildItems(tes, a.jenisKelamin);
-      html += `<p style="margin:0 0 8px;color:var(--text-light);font-size:0.85rem;">Tes: ${tes.tanggalTes}</p>`;
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;"><p style="margin:0;color:var(--text-light);font-size:0.85rem;">Tes: ${tes.tanggalTes}</p><button onclick="hapusTesFisikPerRecord('${normalizeId(tes.id)}')" style="background:#ef4444;color:#fff;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:0.7rem;">Hapus</button></div>`;
       html += renderTabelNormal(items);
     }
 
@@ -573,7 +604,7 @@ function populateFilterAtletCSS() {
   const current = sel.value;
   sel.innerHTML = '<option value="">Semua Atlet</option>';
   const namaSet = [...new Set(APP.tesCSS.map(t => {
-    const a = APP.atlet.find(x => x.id === t.atletId);
+    const a = APP.atlet.find(x => normalizeId(x.id) === normalizeId(t.atletId));
     return a ? a.nama : 'Unknown';
   }))];
   namaSet.forEach(n => {
@@ -711,7 +742,7 @@ function renderHasilCSS() {
   let list = APP.tesCSS;
   if (filterNama) {
     list = list.filter(t => {
-      const a = APP.atlet.find(x => x.id === t.atletId);
+      const a = APP.atlet.find(x => normalizeId(x.id) === normalizeId(t.atletId));
       return a && a.nama === filterNama;
     });
   }
@@ -723,26 +754,27 @@ function renderHasilCSS() {
 
   const grouped = {};
   list.forEach(t => {
-    if (!grouped[t.atletId]) grouped[t.atletId] = [];
-    grouped[t.atletId].push(t);
+    const key = normalizeId(t.atletId);
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(t);
   });
 
   let html = '';
   for (const [atletId, tesList] of Object.entries(grouped)) {
-    const a = APP.atlet.find(x => x.id === parseInt(atletId));
+    const a = APP.atlet.find(x => normalizeId(x.id) === atletId);
     if (!a) continue;
 
-    html += `<div class="rek-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">${a.nama} (${a.jenisKelamin}, Usia ${a.usia})</h3><button onclick="hapusTesCSSAtlet(${a.id})" style="background:#ef4444;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Hapus Semua Tes CSS</button></div>`;
+    html += `<div class="rek-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">${a.nama} (${a.jenisKelamin}, Usia ${a.usia})</h3><button onclick="hapusTesCSSAtlet('${normalizeId(a.id)}')" style="background:#ef4444;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Hapus Semua Tes CSS</button></div>`;
     html += '<table class="data-table"><thead><tr><th>Tanggal</th><th>CSS (m/s)</th><th>Kategori CSS</th><th>Pace/100m</th><th>Tingkatan Pace</th><th>VO2max</th><th>Kategori VO2max</th></tr></thead><tbody>';
     tesList.forEach(t => {
       html += `<tr>
         <td>${t.tanggalTes}</td>
-        <td><strong>${t.css}</strong></td>
+        <td>${t.css}</td>
         <td><span class="badge ${kategoriBadgeClass(t.kategoriCSS)}">${t.kategoriCSS}</span></td>
         <td>${t.pace100}</td>
         <td><span class="badge ${kategoriBadgeClass(t.tingkatanPace)}">${t.tingkatanPace}</span></td>
         <td>${t.vo2max}</td>
-        <td><span class="badge ${kategoriBadgeClass(t.kategoriVO2max)}">${t.kategoriVO2max}</span>${t.catatanMuda ? ' <small style="color:var(--yellow);">*</small>' : ''}</td>
+        <td><span class="badge ${kategoriBadgeClass(t.kategoriVO2max)}">${t.kategoriVO2max}</span>${t.catatanMuda ? ' <small style="color:var(--yellow);">*</small>' : ''} <button onclick="hapusTesCSSPerRecord('${normalizeId(t.id)}')" style="background:#ef4444;color:#fff;border:none;padding:1px 6px;border-radius:3px;cursor:pointer;font-size:0.65rem;margin-left:4px;">Hapus</button></td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -879,11 +911,12 @@ function drawRadarChart(canvas, datasets, labels) {
 let radarCurrentAtletId = null;
 
 function openRadarModal(atletId) {
-  radarCurrentAtletId = atletId;
-  const atlet = APP.atlet.find(a => a.id === atletId);
+  const nid = normalizeId(atletId);
+  radarCurrentAtletId = nid;
+  const atlet = APP.atlet.find(a => normalizeId(a.id) === nid);
   if (!atlet) return;
 
-  const allFisik = APP.tesFisik.filter(t => t.atletId === atletId).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes));
+  const allFisik = APP.tesFisik.filter(t => normalizeId(t.atletId) === nid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes));
   if (allFisik.length === 0) {
     alert('Atlet ini belum memiliki data tes fisik.');
     return;
@@ -973,9 +1006,10 @@ function renderDashboard() {
   // Cards per atlet
   let html = '';
   APP.atlet.forEach(a => {
-    const allFisik = APP.tesFisik.filter(t => t.atletId === a.id).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes));
+    const aid = normalizeId(a.id);
+    const allFisik = APP.tesFisik.filter(t => normalizeId(t.atletId) === aid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes));
     const latestFisik = allFisik[0];
-    const latestCSS = APP.tesCSS.filter(t => t.atletId === a.id).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
+    const latestCSS = APP.tesCSS.filter(t => normalizeId(t.atletId) === aid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
 
     html += `<div class="dash-card">`;
     html += `<h3>${a.nama}</h3>`;
@@ -1017,8 +1051,8 @@ function renderDashboard() {
     // Detail buttons
     if (latestFisik) {
       html += `<div style="display:flex;gap:8px;margin-top:12px;">
-        <button class="btn-detail" onclick="openRadarModal(${a.id})" style="flex:1;">Lihat Detail Radar</button>
-        <button class="btn-detail" onclick="downloadKartu(${a.id}, this)" style="flex:1;background:#0d9488;">Download Kartu</button>
+        <button class="btn-detail" onclick="openRadarModal('${aid}')" style="flex:1;">Lihat Detail Radar</button>
+        <button class="btn-detail" onclick="downloadKartu('${aid}', this)" style="flex:1;background:#0d9488;">Download Kartu</button>
       </div>`;
     }
 
@@ -1031,11 +1065,12 @@ function renderDashboard() {
 // ===== DOWNLOAD KARTU ATLET =====
 
 function downloadKartu(atletId, btnEl) {
-  const atlet = APP.atlet.find(a => a.id === atletId);
+  const nid = normalizeId(atletId);
+  const atlet = APP.atlet.find(a => normalizeId(a.id) === nid);
   if (!atlet) return;
 
-  const latestFisik = APP.tesFisik.filter(t => t.atletId === atletId).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
-  const latestCSS = APP.tesCSS.filter(t => t.atletId === atletId).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
+  const latestFisik = APP.tesFisik.filter(t => normalizeId(t.atletId) === nid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
+  const latestCSS = APP.tesCSS.filter(t => normalizeId(t.atletId) === nid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
 
   // Show loading pada tombol
   const btn = btnEl;
@@ -1493,8 +1528,9 @@ function renderRekomendasi() {
 
   let html = '';
   atletList.forEach(a => {
-    const latestFisik = APP.tesFisik.filter(t => t.atletId === a.id).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
-    const latestCSS = APP.tesCSS.filter(t => t.atletId === a.id).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
+    const aid = normalizeId(a.id);
+    const latestFisik = APP.tesFisik.filter(t => normalizeId(t.atletId) === aid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
+    const latestCSS = APP.tesCSS.filter(t => normalizeId(t.atletId) === aid).sort((x, y) => new Date(y.tanggalTes) - new Date(x.tanggalTes))[0];
 
     if (!latestFisik && !latestCSS) {
       html += `<div class="rek-card"><h3>${a.nama}</h3><p style="color:var(--text-light)">Belum ada data tes.</p></div>`;
@@ -1929,18 +1965,36 @@ function deleteAtletFromFirestore(id) {
 }
 
 function deleteTesFisikFromFirestore(atletId) {
-  COL.tesFisik.where('atletId', '==', atletId).get().then(snap => {
-    const batch = db.batch();
-    snap.forEach(doc => batch.delete(doc.ref));
-    batch.commit();
+  const nid = normalizeId(atletId);
+  COL.tesFisik.where('atletId', '==', Number(nid)).get().then(snap => {
+    if (snap.empty) {
+      COL.tesFisik.where('atletId', '==', nid).get().then(snap2 => {
+        const batch = db.batch();
+        snap2.forEach(doc => batch.delete(doc.ref));
+        batch.commit();
+      });
+    } else {
+      const batch = db.batch();
+      snap.forEach(doc => batch.delete(doc.ref));
+      batch.commit();
+    }
   });
 }
 
 function deleteTesCSSFromFirestore(atletId) {
-  COL.tesCSS.where('atletId', '==', atletId).get().then(snap => {
-    const batch = db.batch();
-    snap.forEach(doc => batch.delete(doc.ref));
-    batch.commit();
+  const nid = normalizeId(atletId);
+  COL.tesCSS.where('atletId', '==', Number(nid)).get().then(snap => {
+    if (snap.empty) {
+      COL.tesCSS.where('atletId', '==', nid).get().then(snap2 => {
+        const batch = db.batch();
+        snap2.forEach(doc => batch.delete(doc.ref));
+        batch.commit();
+      });
+    } else {
+      const batch = db.batch();
+      snap.forEach(doc => batch.delete(doc.ref));
+      batch.commit();
+    }
   });
 }
 
@@ -1964,10 +2018,11 @@ async function loadFromFirestore() {
       if (metaSnap.exists) APP.nextId = metaSnap.data().nextId;
       // Bersihkan atlet orphans (tidak ada tes fisik & CSS)
       const orphanIds = APP.atlet.filter(a => {
-        return !APP.tesFisik.some(t => t.atletId === a.id) && !APP.tesCSS.some(t => t.atletId === a.id);
-      }).map(a => a.id);
+        const aid = normalizeId(a.id);
+        return !APP.tesFisik.some(t => normalizeId(t.atletId) === aid) && !APP.tesCSS.some(t => normalizeId(t.atletId) === aid);
+      }).map(a => normalizeId(a.id));
       if (orphanIds.length > 0) {
-        APP.atlet = APP.atlet.filter(a => !orphanIds.includes(a.id));
+        APP.atlet = APP.atlet.filter(a => !orphanIds.includes(normalizeId(a.id)));
         orphanIds.forEach(id => deleteAtletFromFirestore(id));
       }
       return true;
