@@ -364,12 +364,22 @@ function populateFilterAtletFisik() {
 }
 
 // ===== HAPUS DATA PER ATLET =====
+function removeAtletIfEmpty(atletId) {
+  const hasFisik = APP.tesFisik.some(t => t.atletId === atletId);
+  const hasCSS = APP.tesCSS.some(t => t.atletId === atletId);
+  if (!hasFisik && !hasCSS) {
+    APP.atlet = APP.atlet.filter(a => a.id !== atletId);
+    deleteAtletFromFirestore(atletId);
+  }
+}
+
 function hapusTesFisikAtlet(atletId) {
   const a = APP.atlet.find(x => x.id === atletId);
   if (!a) return;
   if (!confirm(`Hapus SEMUA data tes fisik ${a.nama}?`)) return;
   APP.tesFisik = APP.tesFisik.filter(t => t.atletId !== atletId);
   deleteTesFisikFromFirestore(atletId);
+  removeAtletIfEmpty(atletId);
   renderHasilFisik();
   renderDashboard();
 }
@@ -380,6 +390,7 @@ function hapusTesCSSAtlet(atletId) {
   if (!confirm(`Hapus SEMUA data tes CSS ${a.nama}?`)) return;
   APP.tesCSS = APP.tesCSS.filter(t => t.atletId !== atletId);
   deleteTesCSSFromFirestore(atletId);
+  removeAtletIfEmpty(atletId);
   renderHasilCSS();
   renderDashboard();
 }
