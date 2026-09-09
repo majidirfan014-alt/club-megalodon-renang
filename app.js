@@ -239,10 +239,13 @@ function formatPace(detik) {
 }
 
 function parseTime(str) {
-  // format "M:SS" or "MM:SS" to seconds
+  // format "M:SS" or "MM:SS" to total seconds
   const parts = str.split(':');
   if (parts.length !== 2) return NaN;
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  const menit = parseInt(parts[0], 10);
+  const detik = parseInt(parts[1], 10);
+  if (isNaN(menit) || isNaN(detik) || menit < 0 || detik < 0 || detik >= 60) return NaN;
+  return menit * 60 + detik;
 }
 
 // getKategoriNorma sudah didefinisikan di bagian STATISTIK DINAMIS di atas
@@ -623,6 +626,25 @@ function populateFilterAtletRek() {
   });
   if (current) sel.value = current;
 }
+
+function updateKonversiWaktu(input, targetId) {
+  const val = input.value.trim();
+  const detik = parseTime(val);
+  const el = document.getElementById(targetId);
+  if (isNaN(detik) || val === '') {
+    el.textContent = '';
+  } else {
+    el.textContent = '= ' + detik + ' detik';
+  }
+}
+
+$('#cWaktu50').addEventListener('input', function() {
+  updateKonversiWaktu(this, 'konversi50');
+});
+
+$('#cWaktu400').addEventListener('input', function() {
+  updateKonversiWaktu(this, 'konversi400');
+});
 
 $('#formCSS').addEventListener('submit', e => {
   e.preventDefault();
