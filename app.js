@@ -244,7 +244,7 @@ function parseTime(str) {
   if (parts.length !== 2) return NaN;
   const menit = parseInt(parts[0], 10);
   const detik = parseInt(parts[1], 10);
-  if (isNaN(menit) || isNaN(detik) || menit < 0 || detik < 0 || detik >= 60) return NaN;
+  if (isNaN(menit) || isNaN(detik) || menit < 0 || detik < 0) return NaN;
   return menit * 60 + detik;
 }
 
@@ -654,8 +654,11 @@ $('#formCSS').addEventListener('submit', e => {
 
   const w50 = parseTime($('#cWaktu50').value);
   const w400 = parseTime($('#cWaktu400').value);
-  if (isNaN(w50) || isNaN(w400) || w400 <= w50) {
-    return alert('Format waktu tidak valid atau waktu 400m harus lebih besar dari 50m!');
+  if (isNaN(w50) || isNaN(w400)) {
+    return alert('Masukkan waktu dengan format menit:detik yang valid (angka saja).');
+  }
+  if (w400 <= w50) {
+    return alert('Waktu 400m harus lebih besar dari waktu 50m.');
   }
 
   // CSS
