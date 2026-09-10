@@ -711,7 +711,7 @@ $('#formCSS').addEventListener('submit', e => {
     tingkatanPace,
     vo2max: vo2max.toFixed(2),
     kategoriVO2max,
-    catatanMuda: usia <= 17 ? 'Nilai VO2max ini perlu dikalibrasi lebih lanjut karena atlet masih dalam masa pertumbuhan.' : ''
+    catatanMuda: usia <= 17 ? 'VO2max masih rendah karena atlet masih dalam tahap perkembangan dan belum optimal.' : ''
   };
 
   APP.tesCSS.push(tes);
@@ -804,7 +804,7 @@ function renderHasilCSS() {
     });
     html += '</tbody></table>';
     if (tesList.some(t => t.catatanMuda)) {
-      html += '<p style="font-size:0.8rem;color:var(--yellow);margin-top:8px;">* VO2max atlet muda perlu dikalibrasi lebih lanjut.</p>';
+      html += '<p style="font-size:0.8rem;color:var(--yellow);margin-top:8px;">* VO2max masih rendah karena atlet masih dalam tahap perkembangan dan belum optimal.</p>';
     }
     html += '</div>';
   }
