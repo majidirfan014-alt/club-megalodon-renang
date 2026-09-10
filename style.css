@@ -682,12 +682,14 @@ body {
   border-bottom: none;
 }
 
-.rek-dot {
+.rek-item > .rek-dot {
+  flex: 0 0 8px;
   width: 8px;
   height: 8px;
+  min-width: 8px;
+  max-width: 8px;
   border-radius: 50%;
   margin-top: 6px;
-  flex-shrink: 0;
 }
 
 .rek-dot.red { background: var(--red); }
